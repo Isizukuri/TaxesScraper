@@ -4,31 +4,26 @@ from openpyxl import load_workbook
 import csv
 
 url = 'http://apps.irs.gov/app/stdc/stdc.html'
-years = [2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014]
-incomeRanges = [x for x in xrange(1, 20)]
-exemptions = [x for x in xrange(1, 7)]
+
+years = range(2005, 2015)
+incomeRanges = range(1, 20)
+exemptions = xrange(1, 7)
+
 
 wb = load_workbook(filename='zip_code_database.xlsx', read_only=True)
 ws = wb['zip_code_database']
-rows = ws['A2':'A42522']
-zips = []
-for row in rows:
-    buf = str(row[0].value)
-    if len(buf) < 5:
-        buf = ((5-len(buf)))*'0'+buf
-    zips.append(buf)
 
-csvFile = open('results.csv', 'a')
-writer = csv.writer(csvFile)
-writer.writerow(('Year','Income Range', 'exemptions', 'Move', 'ZIP Code', 'City or County ID', 'State Tax',
-                    'Local Tax', 'Percents', 'State Tax Amount', 'Local Tax Amount', 'Total Tax'))
-csvFile.close()
+zips = ('{!s:0>5}'.format(row[0].value) for row in ws.iter_rows('A2':'A42522'))
 
-for Year in years:
-    for incomeRange in incomeRanges:
-        for exemption in exemptions:
-            for zipInfo in zips:
 
+with open('results.csv', 'a') as csvFile:
+        csv.writer(csvFile).writerow(('Year','Income Range', 'exemptions', 'Move', 'ZIP Code',
+                                      'City or County ID', 'State Tax', 'Local Tax', 'Percents',
+                                      'State Tax Amount', 'Local Tax Amount', 'Total Tax'))
+
+
+for Year, incomeRange, exemption, zipInfo in product(years, incomeRanges, exemptions, zips):
+        
                 s = requests.Session()
                 get = s.get(url)
 
@@ -107,7 +102,7 @@ for Year in years:
 
 
                         results = {}
-                        results['incomeRange'] = resultPage.table.find('table').findAll('tr')[3].find(colspan='7').string.replace('&#036;','$ ')
+                        results['incomeRange'] = resultPage.table.find('table').findAll('tr')[3].find(colspan='7').string.replace('&3036;','$ ')
                         results['exemptions'] = resultPage.table.find('table').findAll('tr')[4].find(colspan='7').string
                         results['moveData'] = resultPage.table.find('table').findAll('tr')[7].findAll('td')[0].string
                         results['zipCode'] = resultPage.table.find('table').findAll('tr')[7].findAll('td')[1].string
@@ -115,17 +110,17 @@ for Year in years:
                         results['stateTax'] = resultPage.table.find('table').findAll('tr')[7].findAll('td')[3].string
                         results['localTax'] = resultPage.table.find('table').findAll('tr')[7].findAll('td')[4].string
                         results['percentage'] = resultPage.table.find('table').findAll('tr')[7].findAll('td')[5].string
-                        results['stateTaxAmount'] = resultPage.table.find('table').findAll('tr')[7].findAll('td')[6].string.replace('&#036;','$ ')
-                        results['localTaxAmount'] = resultPage.table.find('table').findAll('tr')[7].findAll('td')[7].string.replace('&#036;','$ ')
-                        results['totalTax'] = resultPage.table.find('table').findAll('tr')[7].findAll('td')[8].string.replace('&#036;','$ ')
+                        results['stateTaxAmount'] = resultPage.table.find('table').findAll('tr')[7].findAll('td')[6].string.replace('&3036;','$ ')
+                        results['localTaxAmount'] = resultPage.table.find('table').findAll('tr')[7].findAll('td')[7].string.replace('&3036;','$ ')
+                        results['totalTax'] = resultPage.table.find('table').findAll('tr')[7].findAll('td')[8].string.replace('&3036;','$ ')
 
                         csvFile = open('results.csv', 'a')
-                        writer = csv.writer(csvFile)
-                        writer.writerow((str(Year),results['incomeRange'],  results['exemptions'], results['moveData'], results['zipCode'],
+												writer = csv.writer(csvFile)
+                        writer.writerow((results['incomeRange'],  results['exemptions'], results['moveData'], results['zipCode'],
                                          results['cityCountyState'], results['stateTax'], results['localTax'], results['percentage'], results['stateTaxAmount'],
-                                         results['localTaxAmount'], results['totalTax']))
-                        
+                                         results['stateTaxAmount'], results['totalTax']))
                         csvFile.close()
+
                         print str(Year)+' '+zipInfo+' '+str(countyId)+' '+'Row Succes'
                         
 
